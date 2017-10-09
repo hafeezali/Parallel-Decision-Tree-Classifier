@@ -9,6 +9,10 @@
 
 using namespace std;
 
+vector <vector <string> > fileContent;
+vector <int> cardinality;
+int numOfAttrib, numOfDataEle;
+
 struct node{
 	int val;
 	int attribute;
@@ -22,10 +26,8 @@ node* create(){
 	return n;
 }
 
-vector <vector <string> > readCSV()
+void readCSV()
 {
-	vector <vector <string> > fileContent;
-
 	ifstream ifs(fileName);
 	string line;
 
@@ -40,48 +42,72 @@ vector <vector <string> > readCSV()
 	}
 
 	ifs.close();
-
-	return fileContent;
-
 }
 
-vector <int> getCardinality(vector< vector <string> > fileContent)
+void getCardinality()
 {
-	vector <int> cardinality(fileContent[0].size(),0);
+	vector <int> cardinal(fileContent[0].size(),0);
 	int i,j;
 	for(i=1;i<fileContent[0].size()-1;i++){
 		set <int> values;
 		for(j=0;j<fileContent.size();j++){
 			values.insert(fileContent[j][i]);
 		}
-		cardinality[i]=set.size();
+		cardinal[i]=set.size();
 	}
-	return cardinality;
+	cardinality=cardinal;
+}
+
+int select(vector <int> attr,vector <int> data)
+{
+	int i;
+	for(i=0;i<attr.size();i++){
+		
+	}
+}
+
+void decision(vector<int> attr,vector<int> data,node *root)
+{
+	int flag,selectedAttribute;
+
+	if(data.size()==0){
+		return;
+	}
+	flag=1;
+	for(i=1;i<data.size();i++){
+		if(fileContent[data[i]][numOfAttrib-1]!=fileContent[data[i-1]][numOfAttrib-1]){
+			flag=0;
+			break;
+		}
+	}
+	if(flag==1){
+		root->val=fileContent[data[0][numOfAttrib-1]];
+		return;
+	}
+	selectedAttribute=select(attr,data);
 }
 
 int main()
 {
-	vector <vector <string> > fileContent;
-	vector <int> cardinality;
-	int numOfAttrib, numOfDataEle;
+	int i;
 	node* root;
-	
-	fileContent = readCSV();
+	vector <int> data;
+	vector <int> attr;
+
+	readCSV();
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
-	cardinality = getCardinality(fileContent);
+	getCardinality();
+
+	for(i=0;i<=numOfDataEle;i++){
+		data.push_back(i);
+	}
+	for(i=0;i<=numOfAttrib;i++){
+		attr.push_back(0);
+	}
 
 	root = create();
-	decision(,root);
-	// int x,y,i,j;
-	// x=fileContent.size();
-	// y=fileContent[0].size();
-	// for(i=0;i<x;i++){
-	// 	for(j=0;j<y;j++){
-	// 		cout << fileContent[i][j] << " ";
-	// 	}
-	// 	cout << endl;
-	// }
-	
+	decision(attr,data,root);
+
 	return 0;
 }
