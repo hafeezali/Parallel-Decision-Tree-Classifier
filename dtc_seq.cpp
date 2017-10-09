@@ -3,10 +3,24 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <set>
 
-#define fileName "spect.csv"
+#define fileName "hayes-roth.data.txt"
 
 using namespace std;
+
+struct node{
+	int val;
+	int attribute;
+	node *child[10];
+}
+
+node* create(){
+	node* n = new node;
+	n->attribute = -1;
+	n->val = -1;
+	return n;
+}
 
 vector <vector <string> > readCSV()
 {
@@ -31,10 +45,34 @@ vector <vector <string> > readCSV()
 
 }
 
+vector <int> getCardinality(vector< vector <string> > fileContent)
+{
+	vector <int> cardinality(fileContent[0].size(),0);
+	int i,j;
+	for(i=1;i<fileContent[0].size()-1;i++){
+		set <int> values;
+		for(j=0;j<fileContent.size();j++){
+			values.insert(fileContent[j][i]);
+		}
+		cardinality[i]=set.size();
+	}
+	return cardinality;
+}
+
 int main()
 {
 	vector <vector <string> > fileContent;
+	vector <int> cardinality;
+	int numOfAttrib, numOfDataEle;
+	node* root;
+	
 	fileContent = readCSV();
+	numOfAttrib = fileContent[0].size()-2;
+	numOfDataEle = fileContent.size();
+	cardinality = getCardinality(fileContent);
+
+	root = create();
+	decision(,root);
 	// int x,y,i,j;
 	// x=fileContent.size();
 	// y=fileContent[0].size();
