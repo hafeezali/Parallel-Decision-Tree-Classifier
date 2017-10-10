@@ -1,4 +1,5 @@
 #include <vector>
+#include <map>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -12,6 +13,7 @@ using namespace std;
 vector <vector <string> > fileContent;
 vector <int> cardinality;
 int numOfAttrib, numOfDataEle;
+double infoGainOfData;
 
 struct node{
 	int val;
@@ -48,7 +50,7 @@ void getCardinality()
 {
 	vector <int> cardinal(fileContent[0].size(),0);
 	int i,j;
-	for(i=1;i<fileContent[0].size()-1;i++){
+	for(i=1;i<fileContent[0].size();i++){
 		set <string> values;
 		for(j=0;j<fileContent.size();j++){
 			values.insert(fileContent[j][i]);
@@ -58,18 +60,46 @@ void getCardinality()
 	cardinality=cardinal;
 }
 
-double entropy(double x,double y)
+double entropy(vector <double> counts)
 {
-	double total = x+y;
-	if(x==0||y==0){
-		return 0;
+	double total,entropy;
+	int i;
+	total=0;
+	for(i=0;i<counts.size();i++){
+		if(counts[i]==0){
+			return 0;
+		}
+		total+=counts[i];
 	}
-	return -((x/total)*log(x/total)/log(2) + (y/total)*log(y/total)/log(2));
+	entropy=0;
+	for(i=0;i<counts.size();i++){
+		entropy += ((counts[i]/total)*(log(counts[i]/total)/log(2)));
+	}
+	return entropy;
 }
 
-double infoGain(int attr,vecto <int> data)
+double infoGain(int attr,vector <int> data)
 {
 
+}
+
+void getInfoGainOfData()
+{
+	int i,classVal;
+	map<int, int> classCount;
+	map<int, int>::iterator it;
+	vector<int> counts;
+	for(i=0;i<fileContent.size();i++){
+		classVal = fileContent[i][numOfAttrib-1];
+		pair<pair<int, int>::iterator, bool> result =  classCount.insert(make_pair(classVal,1));
+		if(result.second == false){
+			result.first->second++;
+		}
+	}
+	for(it=classCount.begin();it!=classCount.end();it++){
+		counts.push_back(it->second);
+	}
+	infoGainOfData = entropy(counts);
 }
 
 int select(vector <int> *attr,vector <int> data)
@@ -125,6 +155,7 @@ int main()
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
 	getCardinality();
+	getInfoGainOfData();
 
 	for(i=0;i<=numOfDataEle;i++){
 		data.push_back(i);
