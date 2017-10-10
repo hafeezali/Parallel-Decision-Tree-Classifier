@@ -80,7 +80,23 @@ double entropy(vector <double> counts)
 
 double infoGain(int attr,vector <int> data)
 {
-
+	int i,branchVal;
+	map<int, int> branchCount;
+	map<int, vector<int>> dataElements;
+	for(i=0;i<data.size();i++){
+		branchVal = fileContent[i][attr];
+		pair<pair<int, int>::iterator, bool> result = branchCount.insert(make_pair(branchVal,1));
+		if(result.second == false){
+			result.first->second++;
+		}
+		vector <int> x;
+		x.push_back(i);
+		pair<pair<int, int>::iterator, bool> result = dataElements.insert(make_pair(branchVal,x));
+		if(result.second == false){
+			result.first->second.push_back(i);
+		}
+	}
+	
 }
 
 void getInfoGainOfData()
