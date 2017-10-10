@@ -49,7 +49,7 @@ void getCardinality()
 	vector <int> cardinal(fileContent[0].size(),0);
 	int i,j;
 	for(i=1;i<fileContent[0].size()-1;i++){
-		set <int> values;
+		set <string> values;
 		for(j=0;j<fileContent.size();j++){
 			values.insert(fileContent[j][i]);
 		}
@@ -58,12 +58,39 @@ void getCardinality()
 	cardinality=cardinal;
 }
 
-int select(vector <int> attr,vector <int> data)
+double entropy(double x,double y)
 {
-	int i;
-	for(i=0;i<attr.size();i++){
-		
+	double total = x+y;
+	if(x==0||y==0){
+		return 0;
 	}
+	return -((x/total)*log(x/total)/log(2) + (y/total)*log(y/total)/log(2));
+}
+
+double infoGain(int attr,vecto <int> data)
+{
+
+}
+
+int select(vector <int> *attr,vector <int> data)
+{
+	int i,splitAttr;
+	double iGain,maxIGain;
+	maxIGain = INT_MIN;
+	for(i=1;i<attr.size()-1;i++){
+		if(attr[i]==0){
+			iGain = infoGain(i,data);
+			if(iGain>maxIGain){
+				maxIGain = iGain;
+				splitAttr = i;
+			}
+		}
+	}
+	if(maxIGain==INT_MIN){
+		return -1;
+	}
+	attr[splitAttr]=1;
+	return splitAttr;
 }
 
 void decision(vector<int> attr,vector<int> data,node *root)
@@ -84,7 +111,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		root->val=fileContent[data[0][numOfAttrib-1]];
 		return;
 	}
-	selectedAttribute=select(attr,data);
+	selectedAttribute=select(&attr,data);
 }
 
 int main()
@@ -102,7 +129,7 @@ int main()
 	for(i=0;i<=numOfDataEle;i++){
 		data.push_back(i);
 	}
-	for(i=0;i<=numOfAttrib;i++){
+	for(i=0;i<=numOfAttrib+2;i++){
 		attr.push_back(0);
 	}
 
