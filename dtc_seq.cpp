@@ -10,7 +10,7 @@
 
 using namespace std;
 
-vector <vector <string> > fileContent;
+vector <vector <int> > fileContent;
 vector <int> cardinality;
 int numOfAttrib, numOfDataEle;
 double infoGainOfData;
@@ -38,7 +38,7 @@ void readCSV()
 		string cell;
 		vector <string> values;
 		while(getline(lineStream,cell,',')){
-			values.push_back(cell);
+			values.push_back(atoi(cell));
 		}
 		fileContent.push_back(values);
 	}
@@ -80,23 +80,44 @@ double entropy(vector <double> counts)
 
 double infoGain(int attr,vector <int> data)
 {
-	int i,branchVal;
+	int i,branchVal,dataSize;
+	double attrInfoGain;
 	map<int, int> branchCount;
+	map<int, int>::iterator branchCountIT;
 	map<int, vector<int>> dataElements;
 	for(i=0;i<data.size();i++){
 		branchVal = fileContent[i][attr];
 		pair<pair<int, int>::iterator, bool> result = branchCount.insert(make_pair(branchVal,1));
-		if(result.second == false){
-			result.first->second++;
+		if(result->second == false){
+			result->first->second++;
 		}
 		vector <int> x;
 		x.push_back(i);
 		pair<pair<int, int>::iterator, bool> result = dataElements.insert(make_pair(branchVal,x));
-		if(result.second == false){
-			result.first->second.push_back(i);
+		if(result->second == false){
+			result->first->second.push_back(i);
 		}
 	}
-	
+	attrInfoGain=0;
+	dataSize=data.size();
+	for(branchCountIT = branchCount.begin();branchCountIT!=branchCount.end();branchCountIT++){
+		vector <int> subData = dataElements[branchCountIT->first];
+		map <int, int> subDataCounts;
+		map <int, int>::iterator subDataCountsIT;
+		for(i=0;i<subData.size();i++){
+			subDataValue = fileContent[subData[i][numOfAttrib-1]];
+			pair<pair<int, int>::iterator, bool> result = subDataCounts.insert(make_pair(subDataValue,1));
+			if(result->second == false){
+				result->first->second++;
+			}
+		}
+		vector <int> subDataCountsArr;
+		for(subDataCountsIT=subDataCounts.begin();subDataCountsIT!=subDataCounts.end();subDataCountsIT++){
+			subDataCountsArr.push_back(subDataCountsIT->second);
+		}
+		attrInfoGain+= (branchCountIT->second/dataSize)*entropy(subDataCountsArr);
+	}
+	return infoGainOfData - attrInfoGain;
 }
 
 void getInfoGainOfData()
@@ -108,8 +129,8 @@ void getInfoGainOfData()
 	for(i=0;i<fileContent.size();i++){
 		classVal = fileContent[i][numOfAttrib-1];
 		pair<pair<int, int>::iterator, bool> result =  classCount.insert(make_pair(classVal,1));
-		if(result.second == false){
-			result.first->second++;
+		if(result->second == false){
+			result->first->second++;
 		}
 	}
 	for(it=classCount.begin();it!=classCount.end();it++){
