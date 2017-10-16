@@ -11,7 +11,7 @@
 using namespace std;
 
 vector <vector <int> > fileContent;
-vector <int> cardinality;
+// vector <int> cardinality;
 int numOfAttrib, numOfDataEle;
 double infoGainOfData;
 
@@ -46,19 +46,19 @@ void readCSV()
 	ifs.close();
 }
 
-void getCardinality()
-{
-	vector <int> cardinal(fileContent[0].size(),0);
-	int i,j;
-	for(i=1;i<fileContent[0].size();i++){
-		set <string> values;
-		for(j=0;j<fileContent.size();j++){
-			values.insert(fileContent[j][i]);
-		}
-		cardinal[i]=set.size();
-	}
-	cardinality=cardinal;
-}
+// void getCardinality()
+// {
+// 	vector <int> cardinal(fileContent[0].size(),0);
+// 	int i,j;
+// 	for(i=1;i<fileContent[0].size();i++){
+// 		set <string> values;
+// 		for(j=0;j<fileContent.size();j++){
+// 			values.insert(fileContent[j][i]);
+// 		}
+// 		cardinal[i]=set.size();
+// 	}
+// 	cardinality=cardinal;
+// }
 
 double entropy(vector <double> counts)
 {
@@ -162,7 +162,7 @@ int select(vector <int> *attr,vector <int> data)
 
 void decision(vector<int> attr,vector<int> data,node *root)
 {
-	int flag,selectedAttribute;
+	int flag,selectedAttribute,numOfAttribValues,i;
 
 	if(data.size()==0){
 		return;
@@ -175,10 +175,32 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		}
 	}
 	if(flag==1){
-		root->val=fileContent[data[0][numOfAttrib-1]];
+		root->val=fileContent[data[0]][numOfAttrib-1];
 		return;
 	}
 	selectedAttribute=select(&attr,data);
+	root->attribute = selectedAttribute;
+
+	map<int, vector <int> > dividedData;
+	map<int, vector <int> >::iterator it;
+	node childNode;
+	int attrVal;
+
+	for(i=0;i<fileContent.size();i++){
+		attrVal = fileContent[i][selectedAttribute];
+		vector <int> x;
+		x.push_back(i);
+		pair<pair<int, int>::iterator, bool> result =  dividedData.insert(make_pair(attrVal,x));
+		if(result->second == false){
+			result->first->second.push_back(i);
+		}
+	}
+	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
+		childNode = create();
+		root->child[i] = childNode;
+		decision(&attr, it->second, root->child[i]);
+	}
+
 }
 
 int main()
@@ -191,7 +213,7 @@ int main()
 	readCSV();
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
-	getCardinality();
+	// getCardinality();
 	getInfoGainOfData();
 
 	for(i=0;i<=numOfDataEle;i++){
