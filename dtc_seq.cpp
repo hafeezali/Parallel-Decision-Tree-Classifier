@@ -12,12 +12,14 @@
 
 // filename of training data and testing data
 #define trainingData "hayes-roth.data.txt"
-#define testingFile "hayes-roth.test.txt"
+#define testingData "hayes-roth.test.txt"
 
 using namespace std;
 
-// 2d vector to store training and testing data
+// 2d vector to store training data
 vector <vector <int> > fileContent;
+// 2d vector to store testing data
+vector <vector <int> > testFileContent;
 
 int numOfAttrib, numOfDataEle;
 double infoGainOfData;
@@ -47,26 +49,45 @@ node* create(){
 }
 
 // function to read data and store in fileContent vector(2d)
-void readCSV()
+void readCSV(string str)
 {
 	// input file stream (ifs) for reading data from file
-	ifstream ifs(trainingData);
-	string line;
+	if(str.compare("training")==0){
+		ifstream ifs(trainingData);
+		string line;
 
-	// read from ifs into string 'line'
-	while(getline(ifs,line)){
-		stringstream lineStream(line);
-		string cell;
-		vector <int> values;
-		// collecting row data from file delimited by ','
-		while(getline(lineStream,cell,',')){
-			const char *cstr = cell.c_str();
-			values.push_back(atoi(cstr));
+		// read from ifs into string 'line'
+		while(getline(ifs,line)){
+			stringstream lineStream(line);
+			string cell;
+			vector <int> values;
+			// collecting row data from file delimited by ','
+			while(getline(lineStream,cell,',')){
+				const char *cstr = cell.c_str();
+				values.push_back(atoi(cstr));
+			}
+			fileContent.push_back(values);
 		}
-		fileContent.push_back(values);
+		ifs.close();
 	}
-
-	ifs.close();
+	else if(str.compare("testing")==0){
+		ifstream ifs(testingData);
+		string line;
+		
+		// read from ifs into string 'line'
+		while(getline(ifs,line)){
+			stringstream lineStream(line);
+			string cell;
+			vector <int> values;
+			// collecting row data from file delimited by ','
+			while(getline(lineStream,cell,',')){
+				const char *cstr = cell.c_str();
+				values.push_back(atoi(cstr));
+			}
+			testFileContent.push_back(values);
+		}
+		ifs.close();
+	}
 }
 
 // function to calculate entropy 
@@ -199,7 +220,28 @@ int select(vector <int> &attr,vector <int> data)
 // function for returning most probable output class
 int popularVote(vector<int> data)
 {
-	
+	int i,outputClass,ans,maxVal;
+	// dataCount: keeps count of each output class in data vector
+	map <int, int> dataCount;
+	map <int, int>::iterator it;
+	for(i=0;i<data.size();i++){
+		outputClass = fileContent[data[i]][numOfAttrib-1];
+		if(dataCount.find(outputClass) == dataCount.end()){
+			// if outputClass not present as key, insert pair(outputClass, 1)
+			dataCount.insert(make_pair(outputClass,1));
+		}
+		else{
+			dataCount[outputClass]++;
+		}
+	}
+	maxVal = INT_MIN;
+	// ans contains popularVote
+	for(it=dataCount.begin();it!=dataCount.end();it++){
+		if(it->second > maxVal){
+			ans=it->first;
+		}
+	}
+	return ans;
 }
 
 // builder function for generating decision tree
@@ -261,6 +303,17 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		childNode = create();
 		childNode->branchVal = it->first;
 		root->child[i] = childNode;
+
+				// //to be removed
+				// vector<int> x = it->second;
+				// vector<int>::iterator ite;
+				// printf("New: %d %d : ",root->attribute,root->numOfChildren);
+				// for(ite=x.begin();ite!=x.end();ite++){
+				// 	cout << *ite << " ";
+				// }
+				// cout << endl;
+				// //to be removed
+
 		decision(attr, it->second, childNode);
 	}
 
@@ -270,20 +323,16 @@ void decision(vector<int> attr,vector<int> data,node *root)
 void printDecisionTree(node *root)
 {
 	queue <node> bfsQ;
-	// i : indicates tree level
-	int i,x,j;
+	int x,j;
 	node* nextNode;
 	bfsQ.push(*root);
-	i=0;
-	cout << "Level " << i << ":" << endl;
 	cout << root->attribute << " "<< endl;
+	// implementing bfs traversal of tree
 	while(bfsQ.size()!=0){
 		nextNode = &(bfsQ.front());
 		bfsQ.pop();
 		x = nextNode->numOfChildren;
-		i++;
 		j=0;
-		cout << "Level " << i << ":" << endl;
 		while(j<x){
 			bfsQ.push(*(nextNode->child[j]));
 			cout << nextNode->child[j]->attribute << " ";
@@ -291,6 +340,55 @@ void printDecisionTree(node *root)
 		}
 		cout << endl;
 	}
+	return;
+}
+
+// function for testing decision tree
+void test(node* root)
+{
+	int i,pos,neg,noResult,attr,attrVal,j,flag;
+	node* temp;
+	pos=0;
+	neg=0;
+	noResult=0;
+	readCSV("testing");
+	for(i=0;i<testFileContent.size();i++){
+		temp=root;
+		flag=0;
+		//traverse decision tree
+		while(temp->val==-1 && temp->attribute!=-1){
+			attr = temp->attribute;
+			attrVal=testFileContent[i][attr];
+			for(j=0;j<temp->numOfChildren;j++){
+				if(temp->child[j]->branchVal == attrVal){
+					break;
+				}
+			}
+			if(j==temp->numOfChildren){
+				flag=1;
+				break;
+			}
+			else{
+				temp=temp->child[j];
+			}
+		}
+		if(temp->val == testFileContent[i][numOfAttrib-1]){
+			// predicted value = actual value
+			pos++;
+		}
+		else{
+			// predicted value != actual value
+			neg++;
+		}
+		if(temp->val == -1 || flag==1){
+			// no predicted value
+			noResult++;
+		}
+	}
+	cout << "Positive: " << pos << endl;
+	cout << "Negative: " << neg << endl;
+	cout << "No Result: " << noResult << endl;
+
 	return;
 }
 
@@ -303,7 +401,7 @@ int main()
 	// vector to check if attribute has already been used or not
 	vector <int> attr;
 
-	readCSV();
+	readCSV("training");
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
 	getInfoGainOfData();
@@ -318,7 +416,12 @@ int main()
 	// create decision tree
 	root = create();
 	decision(attr,data,root);
-	printDecisionTree(root);
+	
+	//print decision tree
+	//printDecisionTree(root);
+
+	// test decision tree
+	test(root);
 
 	return 0;
 }
