@@ -1,10 +1,14 @@
 #include <vector>
 #include <map>
+#include <queue>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <cmath>
+#include <cstdlib>
 #include <set>
+#include <climits>
 
 // filename of training data and testing data
 #define trainingData "hayes-roth.data.txt"
@@ -21,17 +25,24 @@ double infoGainOfData;
 // node structure of the decision tree
 // attribute: splitting attribute (= -1 if leaf node)
 // val: class value at leaf node (= -1 if decision node)
-struct node{
+// branchVal: make branch decision based on this value
+struct Node{
+	int numOfChildren;
 	int val;
+	int branchVal;
 	int attribute;
-	node *child[10];
-}
+	struct Node *child[10];
+};
+
+typedef struct Node node;
 
 // initialising tree node
 node* create(){
 	node* n = new node;
+	n->numOfChildren = 0;
 	n->attribute = -1;
 	n->val = -1;
+	n->branchVal = -1;
 	return n;
 }
 
@@ -46,30 +57,17 @@ void readCSV()
 	while(getline(ifs,line)){
 		stringstream lineStream(line);
 		string cell;
-		vector <string> values;
+		vector <int> values;
 		// collecting row data from file delimited by ','
 		while(getline(lineStream,cell,',')){
-			values.push_back(atoi(cell));
+			const char *cstr = cell.c_str();
+			values.push_back(atoi(cstr));
 		}
 		fileContent.push_back(values);
 	}
 
 	ifs.close();
 }
-
-		// void getCardinality()
-		// {
-		// 	vector <int> cardinal(fileContent[0].size(),0);
-		// 	int i,j;
-		// 	for(i=1;i<fileContent[0].size();i++){
-		// 		set <string> values;
-		// 		for(j=0;j<fileContent.size();j++){
-		// 			values.insert(fileContent[j][i]);
-		// 		}
-		// 		cardinal[i]=set.size();
-		// 	}
-		// 	cardinality=cardinal;
-		// }
 
 // function to calculate entropy 
 double entropy(vector <double> counts)
@@ -96,20 +94,21 @@ double entropy(vector <double> counts)
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 double infoGain(int attr,vector <int> data)
 {
-	int i,branchVal,dataSize;
+	int i,branchVal,dataSize,subDataValue;
 	double attrInfoGain;
 	// branchCount: count of each attribute value
 	map<int, int> branchCount;
 	map<int, int>::iterator branchCountIT;
 	// dataElements[i]: vector containing all data elements having attribute value "i"
-	map<int, vector<int>> dataElements;
+	map<int, vector<int> > dataElements;
 	for(i=0;i<data.size();i++){
 		branchVal = fileContent[i][attr];
 		if(branchCount.find(branchVal) == branchCount.end()){
-			// if branchCount does not contain the key branchVal
+			// if branchCount does not contain the key branchVal, then insert the pair(branchVal,1)
 			branchCount.insert(make_pair(branchVal,1));
 			vector <int> x;
 			x.push_back(i);
+			// add "i" to the vector containing all data elements whose attribute value is branchVal
 			dataElements.insert(make_pair(branchVal,x));
 		}
 		else{
@@ -121,20 +120,24 @@ double infoGain(int attr,vector <int> data)
 	dataSize=data.size();
 	for(branchCountIT = branchCount.begin();branchCountIT!=branchCount.end();branchCountIT++){
 		vector <int> subData = dataElements[branchCountIT->first];
+		// subDataCounts: contains count of data elements belonging to the different output classes
 		map <int, int> subDataCounts;
 		map <int, int>::iterator subDataCountsIT;
 		for(i=0;i<subData.size();i++){
 			subDataValue = fileContent[subData[i]][numOfAttrib-1];
 			if(subDataCounts.find(subDataValue) == subDataCounts.end()){
+				// if subDataCounts does not contain subDataValue as key, then insert the pair(subDataValue,1)
 				subDataCounts.insert(make_pair(subDataValue,1));
 			}
 			else{
+				// if it contains the key, then increment count
 				subDataCounts[subDataValue]++;
 			}
 		}
-		vector <int> subDataCountsArr;
+		// subDataCountsArr: contains all counts of each output class value
+		vector <double> subDataCountsArr;
 		for(subDataCountsIT=subDataCounts.begin();subDataCountsIT!=subDataCounts.end();subDataCountsIT++){
-			subDataCountsArr.push_back(subDataCountsIT->second);
+			subDataCountsArr.push_back((double)subDataCountsIT->second);
 		}
 		attrInfoGain+= (branchCountIT->second/dataSize)*entropy(subDataCountsArr);
 	}
@@ -149,7 +152,7 @@ void getInfoGainOfData()
 	map<int, int> classCount;
 	map<int, int>::iterator it;
 	// counts: store all the counts of all the classes, used for calculating entropy
-	vector<int> counts;
+	vector<double> counts;
 	for(i=0;i<fileContent.size();i++){
 		classVal = fileContent[i][numOfAttrib-1];
 		// result->second = false if insert failed
@@ -162,7 +165,7 @@ void getInfoGainOfData()
 		}
 	}
 	for(it=classCount.begin();it!=classCount.end();it++){
-		counts.push_back(it->second);
+		counts.push_back((double)it->second);
 	}
 	infoGainOfData = entropy(counts);
 }
@@ -170,7 +173,7 @@ void getInfoGainOfData()
 // function to determine the splitting attribute
 // attr: candidate attributes for splitting attribute, attr[i]=1 if already used
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
-int select(vector <int> *attr,vector <int> data)
+int select(vector <int> &attr,vector <int> data)
 {
 	int i,splitAttr;
 	double iGain,maxIGain;
@@ -218,31 +221,65 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		return;
 	}
 	// selectedAttribute : splitting attribute
-	selectedAttribute=select(&attr,data);
+	selectedAttribute=select(attr,data);
 	root->attribute = selectedAttribute;
 
+	// dividedData: divide data and store based on attribute values
 	map<int, vector <int> > dividedData;
 	map<int, vector <int> >::iterator it;
-	node childNode;
 	int attrVal;
 
-	for(i=0;i<fileContent.size();i++){
-		attrVal = fileContent[i][selectedAttribute];
+	for(i=0;i<data.size();i++){
+		attrVal = fileContent[data[i]][selectedAttribute];
 		if(dividedData.find(attrVal) == dividedData.end()){
+			// if attrVal not present as key in dividedData, then insert pair (attrVal,x), where x is a vector
 			vector <int> x;
 			x.push_back(i);
 			dividedData.insert(make_pair(attrVal,x));
 		}
 		else{
+			// if attrVal is present, add "i" to the corresponding vector
 			dividedData[attrVal].push_back(i);
 		}
 	}
 	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
+		// create childNode and recurse on it
+		root->numOfChildren++;
+		node* childNode;
 		childNode = create();
+		childNode->branchVal = it->first;
 		root->child[i] = childNode;
-		decision(&attr, it->second, root->child[i]);
+		decision(attr, it->second, root->child[i]);
 	}
 
+}
+
+// function for printing and debugging decision tree : bfs traversal
+void printDecisionTree(node *root)
+{
+	queue <node> bfsQ;
+	// i : indicates tree level
+	int i,x,j;
+	node* nextNode;
+	bfsQ.push(*root);
+	i=0;
+	cout << "Level " << i << ":" << endl;
+	cout << root->attribute << " "<< endl;
+	while(bfsQ.size()!=0){
+		nextNode = &(bfsQ.front());
+		bfsQ.pop();
+		x = nextNode->numOfChildren;
+		i++;
+		j=0;
+		cout << "Level " << i << ":" << endl;
+		while(j<x){
+			bfsQ.push(*(nextNode->child[j]));
+			cout << nextNode->child[j]->attribute << " ";
+			j++;
+		}
+		cout << endl;
+	}
+	return;
 }
 
 int main()
@@ -257,7 +294,6 @@ int main()
 	readCSV();
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
-			// getCardinality();
 	getInfoGainOfData();
 
 	for(i=0;i<numOfDataEle;i++){
@@ -270,6 +306,7 @@ int main()
 	// create decision tree
 	root = create();
 	decision(attr,data,root);
+	printDecisionTree(root);
 
 	return 0;
 }
