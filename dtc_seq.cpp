@@ -105,15 +105,16 @@ double infoGain(int attr,vector <int> data)
 	map<int, vector<int>> dataElements;
 	for(i=0;i<data.size();i++){
 		branchVal = fileContent[i][attr];
-		pair<pair<int, int>::iterator, bool> result = branchCount.insert(make_pair(branchVal,1));
-		if(result->second == false){
-			result->first->second++;
+		if(branchCount.find(branchVal) == branchCount.end()){
+			// if branchCount does not contain the key branchVal
+			branchCount.insert(make_pair(branchVal,1));
+			vector <int> x;
+			x.push_back(i);
+			dataElements.insert(make_pair(branchVal,x));
 		}
-		vector <int> x;
-		x.push_back(i);
-		pair<pair<int, int>::iterator, bool> result = dataElements.insert(make_pair(branchVal,x));
-		if(result->second == false){
-			result->first->second.push_back(i);
+		else{
+			branchCount[branchVal]++;
+			dataElements[branchVal].push_back(i);
 		}
 	}
 	attrInfoGain=0;
@@ -124,9 +125,11 @@ double infoGain(int attr,vector <int> data)
 		map <int, int>::iterator subDataCountsIT;
 		for(i=0;i<subData.size();i++){
 			subDataValue = fileContent[subData[i]][numOfAttrib-1];
-			pair<pair<int, int>::iterator, bool> result = subDataCounts.insert(make_pair(subDataValue,1));
-			if(result->second == false){
-				result->first->second++;
+			if(subDataCounts.find(subDataValue) == subDataCounts.end()){
+				subDataCounts.insert(make_pair(subDataValue,1));
+			}
+			else{
+				subDataCounts[subDataValue]++;
 			}
 		}
 		vector <int> subDataCountsArr;
@@ -151,9 +154,11 @@ void getInfoGainOfData()
 		classVal = fileContent[i][numOfAttrib-1];
 		// result->second = false if insert failed
 		// insert operation fails if "classVal" key already present in map "classCount"
-		pair<pair<int, int>::iterator, bool> result =  classCount.insert(make_pair(classVal,1));
-		if(result->second == false){
-			result->first->second++;
+		if(classCount.find(classVal) == classCount.end()){
+			classCount.insert(make_pair(classVal,1));
+		}
+		else{
+			classCount[classVal]++;
 		}
 	}
 	for(it=classCount.begin();it!=classCount.end();it++){
@@ -223,11 +228,13 @@ void decision(vector<int> attr,vector<int> data,node *root)
 
 	for(i=0;i<fileContent.size();i++){
 		attrVal = fileContent[i][selectedAttribute];
-		vector <int> x;
-		x.push_back(i);
-		pair<pair<int, int>::iterator, bool> result =  dividedData.insert(make_pair(attrVal,x));
-		if(result->second == false){
-			result->first->second.push_back(i);
+		if(dividedData.find(attrVal) == dividedData.end()){
+			vector <int> x;
+			x.push_back(i);
+			dividedData.insert(make_pair(attrVal,x));
+		}
+		else{
+			dividedData[attrVal].push_back(i);
 		}
 	}
 	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
