@@ -196,6 +196,12 @@ int select(vector <int> &attr,vector <int> data)
 	return splitAttr;
 }
 
+// function for returning most probable output class
+int popularVote(vector<int> data)
+{
+	
+}
+
 // builder function for generating decision tree
 // attr: candidate attributes for splitting attribute, attr[i]=1 if already used
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
@@ -224,6 +230,12 @@ void decision(vector<int> attr,vector<int> data,node *root)
 	selectedAttribute=select(attr,data);
 	root->attribute = selectedAttribute;
 
+	if(selectedAttribute == -1){
+		// running out of attributes
+		root->attribute = popularVote(data);
+		return;
+	}
+
 	// dividedData: divide data and store based on attribute values
 	map<int, vector <int> > dividedData;
 	map<int, vector <int> >::iterator it;
@@ -249,7 +261,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		childNode = create();
 		childNode->branchVal = it->first;
 		root->child[i] = childNode;
-		decision(attr, it->second, root->child[i]);
+		decision(attr, it->second, childNode);
 	}
 
 }
