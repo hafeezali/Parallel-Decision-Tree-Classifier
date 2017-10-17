@@ -22,7 +22,6 @@ vector <vector <int> > fileContent;
 vector <vector <int> > testFileContent;
 
 int numOfAttrib, numOfDataEle;
-double infoGainOfData;
 
 // node structure of the decision tree
 // attribute: splitting attribute (= -1 if leaf node)
@@ -48,7 +47,7 @@ node* create(){
 	return n;
 }
 
-// function to read data and store in fileContent vector(2d)
+// function to read data and store in fileContent & testFileContent vectors(2d)
 void readCSV(string str)
 {
 	// input file stream (ifs) for reading data from file
@@ -110,6 +109,32 @@ double entropy(vector <double> counts)
 	return entropy;
 }
 
+// function to get information gain of training data
+double getInfoGainOfData(vector <int> data)
+{
+	int i,classVal;
+	// classCount: keeps a count of the number of data points belonging to a particular class
+	map<int, int> classCount;
+	map<int, int>::iterator it;
+	// counts: store all the counts of all the classes, used for calculating entropy
+	vector<double> counts;
+	for(i=0;i<data.size();i++){
+		classVal = fileContent[data[i]][numOfAttrib-1];
+		// result->second = false if insert failed
+		// insert operation fails if "classVal" key already present in map "classCount"
+		if(classCount.find(classVal) == classCount.end()){
+			classCount.insert(make_pair(classVal,1));
+		}
+		else{
+			classCount[classVal]++;
+		}
+	}
+	for(it=classCount.begin();it!=classCount.end();it++){
+		counts.push_back((double)it->second);
+	}
+	return entropy(counts);
+}
+
 // function to calculate information gain
 // attr: attribute for which gin must be calculated
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
@@ -162,33 +187,7 @@ double infoGain(int attr,vector <int> data)
 		}
 		attrInfoGain+= (branchCountIT->second/dataSize)*entropy(subDataCountsArr);
 	}
-	return infoGainOfData - attrInfoGain;
-}
-
-// function to get information gain of training data
-void getInfoGainOfData()
-{
-	int i,classVal;
-	// classCount: keeps a count of the number of data points belonging to a particular class
-	map<int, int> classCount;
-	map<int, int>::iterator it;
-	// counts: store all the counts of all the classes, used for calculating entropy
-	vector<double> counts;
-	for(i=0;i<fileContent.size();i++){
-		classVal = fileContent[i][numOfAttrib-1];
-		// result->second = false if insert failed
-		// insert operation fails if "classVal" key already present in map "classCount"
-		if(classCount.find(classVal) == classCount.end()){
-			classCount.insert(make_pair(classVal,1));
-		}
-		else{
-			classCount[classVal]++;
-		}
-	}
-	for(it=classCount.begin();it!=classCount.end();it++){
-		counts.push_back((double)it->second);
-	}
-	infoGainOfData = entropy(counts);
+	return getInfoGainOfData(data) - attrInfoGain;
 }
 
 // function to determine the splitting attribute
@@ -304,16 +303,6 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		childNode->branchVal = it->first;
 		root->child[i] = childNode;
 
-				// //to be removed
-				// vector<int> x = it->second;
-				// vector<int>::iterator ite;
-				// printf("New: %d %d : ",root->attribute,root->numOfChildren);
-				// for(ite=x.begin();ite!=x.end();ite++){
-				// 	cout << *ite << " ";
-				// }
-				// cout << endl;
-				// //to be removed
-
 		decision(attr, it->second, childNode);
 	}
 
@@ -404,7 +393,6 @@ int main()
 	readCSV("training");
 	numOfAttrib = fileContent[0].size()-2;
 	numOfDataEle = fileContent.size();
-	getInfoGainOfData();
 
 	for(i=0;i<numOfDataEle;i++){
 		data.push_back(i);
