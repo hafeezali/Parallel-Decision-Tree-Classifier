@@ -12,7 +12,7 @@
 
 // filename of training data and testing data
 #define trainingData "hayes-roth.data.txt"
-#define testingData "hayes-roth.test.txt"
+#define testingData "hayes-roth.data.txt"
 
 using namespace std;
 
@@ -104,9 +104,9 @@ double entropy(vector <double> counts)
 	entropy=0;
 	// Entropy E = (a/(a+b+...))*(log(a/(a+b+...))/log(2)) + (b/(a+b+...))*(log(b/(a+b+...))/log(2)) + ...
 	for(i=0;i<counts.size();i++){
-		entropy += ((counts[i]/total)*(log(counts[i]/total)/log(2)));
+		entropy += (counts[i]/total)*(log(counts[i]/total)/log(2));
 	}
-	return entropy;
+	return -1 * entropy;
 }
 
 // function to get information gain of training data
@@ -148,18 +148,18 @@ double infoGain(int attr,vector <int> data)
 	// dataElements[i]: vector containing all data elements having attribute value "i"
 	map<int, vector<int> > dataElements;
 	for(i=0;i<data.size();i++){
-		branchVal = fileContent[i][attr];
+		branchVal = fileContent[data[i]][attr];
 		if(branchCount.find(branchVal) == branchCount.end()){
 			// if branchCount does not contain the key branchVal, then insert the pair(branchVal,1)
 			branchCount.insert(make_pair(branchVal,1));
 			vector <int> x;
-			x.push_back(i);
+			x.push_back(data[i]);
 			// add "i" to the vector containing all data elements whose attribute value is branchVal
 			dataElements.insert(make_pair(branchVal,x));
 		}
 		else{
 			branchCount[branchVal]++;
-			dataElements[branchVal].push_back(i);
+			dataElements[branchVal].push_back(data[i]);
 		}
 	}
 	attrInfoGain=0;
@@ -185,7 +185,7 @@ double infoGain(int attr,vector <int> data)
 		for(subDataCountsIT=subDataCounts.begin();subDataCountsIT!=subDataCounts.end();subDataCountsIT++){
 			subDataCountsArr.push_back((double)subDataCountsIT->second);
 		}
-		attrInfoGain+= (branchCountIT->second/dataSize)*entropy(subDataCountsArr);
+		attrInfoGain+= ((double)branchCountIT->second/(double)dataSize)*entropy(subDataCountsArr);
 	}
 	return getInfoGainOfData(data) - attrInfoGain;
 }
@@ -248,8 +248,7 @@ int popularVote(vector<int> data)
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 void decision(vector<int> attr,vector<int> data,node *root)
 {
-	int flag,selectedAttribute,numOfAttribValues,i;
-	// if no data then can't decide the class value, must take popular vote
+	int flag,selectedAttribute,i;
 	if(data.size()==0){
 		return;
 	}
@@ -273,7 +272,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 
 	if(selectedAttribute == -1){
 		// running out of attributes
-		root->attribute = popularVote(data);
+		root->val = popularVote(data);
 		return;
 	}
 
@@ -287,12 +286,12 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		if(dividedData.find(attrVal) == dividedData.end()){
 			// if attrVal not present as key in dividedData, then insert pair (attrVal,x), where x is a vector
 			vector <int> x;
-			x.push_back(i);
+			x.push_back(data[i]);
 			dividedData.insert(make_pair(attrVal,x));
 		}
 		else{
 			// if attrVal is present, add "i" to the corresponding vector
-			dividedData[attrVal].push_back(i);
+			dividedData[attrVal].push_back(data[i]);
 		}
 	}
 	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
@@ -315,7 +314,7 @@ void printDecisionTree(node *root)
 	int x,j;
 	node* nextNode;
 	bfsQ.push(*root);
-	cout << root->attribute << " "<< endl;
+	cout << root->attribute << endl;
 	// implementing bfs traversal of tree
 	while(bfsQ.size()!=0){
 		nextNode = &(bfsQ.front());
@@ -391,13 +390,14 @@ int main()
 	vector <int> attr;
 
 	readCSV("training");
-	numOfAttrib = fileContent[0].size()-2;
+
+	numOfAttrib = fileContent[0].size();
 	numOfDataEle = fileContent.size();
 
 	for(i=0;i<numOfDataEle;i++){
 		data.push_back(i);
 	}
-	for(i=0;i<=numOfAttrib+2;i++){
+	for(i=0;i<numOfAttrib;i++){
 		attr.push_back(0);
 	}
 
