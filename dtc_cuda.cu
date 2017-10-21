@@ -144,6 +144,29 @@ __global__ void getInfoGainOfData(int *data,int dataSize,int *trainFileData,int 
 	infoGainOfData=-1*infoGain;
 }
 
+int popularVote(int *data,int dataSize)
+{
+	int i,outputClass,ans,maxVal;
+	map <int, int> dataCount;
+	map <int, int>::iterator it;
+	for(i=0;i<dataSize;i++){
+		outputClass = trainFile[data[i]][M-1];
+		if(dataCount.find(outputClass)==dataCount.end()){
+			dataCount.insert(make_pair(outputClass,1));
+		}
+		else{
+			dataCount[outputClass]++;
+		}
+	}
+	maxVal = INT_MIN;
+	for(it=dataCount.begin();it!=dataCount.end();it++){
+		if(it->second > maxVal){
+			ans = it->first;
+		}
+	}
+	return ans;
+}
+
 void decision(int *h_attr,int *h_data, node* root,int h_dataSize)
 {
 	int flag,h_selectedAttribute,i,maxGain;
@@ -170,7 +193,7 @@ void decision(int *h_attr,int *h_data, node* root,int h_dataSize)
 	cudaMalloc((void**)&d_data,h_dataSize*sizeof(int));
 	cudaMalloc((void**)&d_infoGains,(M-1)*sizeof(float));
 	cudaMemcpy((void*)d_attr,(void*)h_attr,M*sizeof(int),cudaMemcpyHostToDevice);
-	cudaMemcpy((void*)d_data,(void*)d_data,N*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)d_data,(void*)h_data,N*sizeof(int),cudaMemcpyHostToDevice);
 
 	getInfoGains<<<blocks,h_dataSize>>>(d_attr,d_data,h_dataSize,d_infoGains,d_trainFileData,d_cardinality);
 
@@ -199,8 +222,30 @@ void decision(int *h_attr,int *h_data, node* root,int h_dataSize)
 		return;
 	}
 
+	map<int, vector <int> > dividedData;
+	map<int, vector <int> >::iterator it;
+	int attrVal;
 
-	
+	for(i=0;i<data.size();i++){
+		attrVal = trainFile[data[i]][h_selectedAttribute];
+		if(dividedData.find(attrVal) == dividedData.end()){
+			vecotr<int> x;
+			x.push_back(data[i]);
+			dividedData.insert(make_pair(attrVal,x));
+		}
+		else{
+			dividedData[attrVal].push_back(data[i]);
+		}
+	}
+	for(i=0;it=dividedData.begin();it!=dividedData.end();it++,i++){
+		root->numOfChildren++;
+		node* childNode;
+		childNode = create();
+		childNode->branchVal = it->first;
+		root->child[i] = childNode;
+
+		decision(h_attr, it->second, childNode)
+	}
 }
 
 __global__ void getCardinality(int *trainFileData,int *cardinality)
@@ -226,6 +271,79 @@ __global__ void getCardinality(int *trainFileData,int *cardinality)
 	if(tid==0){
 		cardinality[bid]=x[0];
 	}
+}
+
+// function for printing and debugging decision tree : bfs traversal
+void printDecisionTree(node *root)
+{
+	queue <node> bfsQ;
+	int x,j;
+	node* nextNode;
+	bfsQ.push(*root);
+	cout << root->attribute << endl;
+	// implementing bfs traversal of tree
+	while(bfsQ.size()!=0){
+		nextNode = &(bfsQ.front());
+		bfsQ.pop();
+		x = nextNode->numOfChildren;
+		j=0;
+		while(j<x){
+			bfsQ.push(*(nextNode->child[j]));
+			cout << nextNode->child[j]->attribute << " ";
+			j++;
+		}
+		cout << endl;
+	}
+	return;
+}
+
+// function for testing decision tree
+void test(node* root)
+{
+	int i,pos,neg,noResult,attr,attrVal,j,flag;
+	node* temp;
+	pos=0;
+	neg=0;
+	noResult=0;
+	readCSV("testing");
+	for(i=0;i<testFileContent.size();i++){
+		temp=root;
+		flag=0;
+		//traverse decision tree
+		while(temp->val==-1 && temp->attribute!=-1){
+			attr = temp->attribute;
+			attrVal=testFileContent[i][attr];
+			for(j=0;j<temp->numOfChildren;j++){
+				if(temp->child[j]->branchVal == attrVal){
+					break;
+				}
+			}
+			if(j==temp->numOfChildren){
+				flag=1;
+				break;
+			}
+			else{
+				temp=temp->child[j];
+			}
+		}
+		if(temp->val == testFileContent[i][numOfAttrib-1]){
+			// predicted value = actual value
+			pos++;
+		}
+		else{
+			// predicted value != actual value
+			neg++;
+		}
+		if(temp->val == -1 || flag==1){
+			// no predicted value
+			noResult++;
+		}
+	}
+	cout << "Positive: " << pos << endl;
+	cout << "Negative: " << neg << endl;
+	cout << "No Result: " << noResult << endl;
+
+	return;
 }
 
 int main()
@@ -260,6 +378,12 @@ int main()
 
 	root = create();
 	decision(h_attr,h_data,root,N);
+
+	//print decision tree
+	//printDecisionTree(root);
+
+	// test decision tree
+	test(root);
 
 	return 0;
 }
