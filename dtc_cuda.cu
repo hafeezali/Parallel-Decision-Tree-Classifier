@@ -19,6 +19,11 @@ using namespace std;
 vector <vector <int> > trainFile;
 vector <vector <int> > testFile;
 
+int *d_trainFileData, *d_cardinality;
+
+dim3 blocks(M);
+dim3 threads(M,N);
+
 // node structure of the decision tree
 // attribute: splitting attribute (= -1 if leaf node)
 // val: class value at leaf node (= -1 if decision node)
@@ -88,23 +93,33 @@ void readCSV(string str)
 __global__
 
 
-void decision(vector<int> attr, vector<int> data, node* root)
+void decision(int *h_attr,int *h_data, node* root,int h_dataSize)
 {
-	int flag,selectedAttribute,i;
-	if(data.size()==0){
+	int flag,h_selectedAttribute,i;
+	if(h_dataSize==0){
 		return;
 	}
 	flag=1;
-	for(i=1;i<data.size();i++){
-		if(fileContent[data[i]][numOfAttrib-1]!=fileContent[data[i-1]][numOfAttrib-1]){
+	for(i=1;i<h_dataSize;i++){
+		if(trainFile[h_data[i]][M-1]!=trainFile[h_data[i-1]][M-1]){
 			flag=0;
 			break;
 		}
 	}
 	if(flag==1){
-		root->val=fileContent[data[0]][numOfAttrib-1];
+		root->val=trainFile[h_data[0]][M-1];
 		return;
 	}
+
+	int *d_attr, *d_data, *d_selectedAttribute;
+
+	cudaMalloc((void**)&d_attr,M*sizeof(int));
+	cudaMalloc((void**)&d_data,h_dataSize*sizeof(int));
+	cudaMalloc((void**)&d_selectedAttribute,sizeof(int));
+	cudaMemcpy((void*)d_attr,(void*)h_attr,M*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)d_data,(void*)d_data,N*sizeof(int),cudaMemcpyHostToDevice);
+
+	select<<<>>>
 	
 }
 
@@ -115,6 +130,10 @@ __global__ void getCardinality(int *trainFileData,int *cardinality)
 	unsigned int i;
 	bid=blockIdx.x;
 	tid=threadIdx.x;
+	if(tid<10){
+		x[tid]=0;
+	}
+	__syncthreads();
 	x[trainFileData(tid,bid)]==1;
 	__syncthreads();
 	for(i=1;i<10;i*=2){
@@ -131,8 +150,6 @@ __global__ void getCardinality(int *trainFileData,int *cardinality)
 
 int main()
 {
-	dim3 blocks(M);
-	dim3 threads(M,N);
 	int i;
 	node* root;
 
@@ -154,13 +171,7 @@ int main()
 		h_attr[i]=0;
 	}
 
-	int *d_attr , *d_data, *d_trainFileData, *d_cardinality;
-
-	cudaMalloc((void**)&d_attr,M*sizeof(int)); 
-	cudaMalloc((void**)&d_data,N*sizeof(int));
 	cudaMalloc((void**)&d_trainFileData,N*M*sizeof(int));
-	cudaMemset(d_attr,0,M*sizeof(int));
-	cudaMemcpy((void*)d_data,(void*)h_data,N*sizeof(int),cudaMemcpyHostToDevice);
 	cudaMemcpy((void*)d_trainFileData,(void*)h_trainFileData,M*N*sizeof(int),cudaMemcpyHostToDevice);
 
 	cudaMalloc((void**)&d_cardinality,M*sizeof(int));
@@ -168,7 +179,7 @@ int main()
 	getCardinality<<<blocks,threads>>>(d_trainFileData,d_cardinality);
 
 	root = create();
-	decision(h_attr,h_data,root);
+	decision(h_attr,h_data,root,N);
 
 	return 0;
 }
