@@ -7,15 +7,17 @@
 #include "math.h"
 #include "limits.h"
 
-#define trainingData "hayes-roth.data.txt"
-#define testingData "hayes-roth.data.txt"
+#define trainingData "myDataset.txt"
+#define testingData "myDataset.txt"
+#define M 6
+#define N 14
+#define trainFileData(row,col) trainFileData[row*M+col]
+#define testFileData(row,col) testFileData[row*M+col]
 
 using namespace std;
 
 vector <vector <int> > trainFile;
 vector <vector <int> > testFile;
-
-int numOfAttrib, numofDataEle;
 
 // node structure of the decision tree
 // attribute: splitting attribute (= -1 if leaf node)
@@ -83,6 +85,9 @@ void readCSV(string str)
 	}
 }
 
+__global__
+
+
 void decision(vector<int> attr, vector<int> data, node* root)
 {
 	int flag,selectedAttribute,i;
@@ -103,27 +108,67 @@ void decision(vector<int> attr, vector<int> data, node* root)
 	
 }
 
+__global__ void getCardinality(int *trainFileData,int *cardinality)
+{
+	__shared__ int x[10];
+	int bid,tid;
+	unsigned int i;
+	bid=blockIdx.x;
+	tid=threadIdx.x;
+	x[trainFileData(tid,bid)]==1;
+	__syncthreads();
+	for(i=1;i<10;i*=2){
+		int index = 2*i*tid;
+		if(index+i<10){
+			x[index]+=x[index+i];
+		}
+		__syncthreads();
+	}
+	if(tid==0){
+		cardinality[bid]=x[0];
+	}
+}
+
 int main()
 {
+	dim3 blocks(M);
+	dim3 threads(M,N);
 	int i;
 	node* root;
 
 	readCSV("training");
 
-	numOfAttrib = fileContent[0].size();
-	numOfDataEle = fileContent.size();
+	int h_trainFileData[N*M];
 
-	int attr[numOfAttrib], data[numOfAttrib];
+	for(i=0;i<N*M;i++){
+		h_trainFileData[i] = trainFile[i/M][i%M];
+	}
 
-	for(i=0;i<numOfDataEle;i++){
-		data[i]]=i;
+	int h_data[N],h_attr[M];
+
+	for(i=0;i<N;i++){
+		h_data[i]]=i;
 	}
-	for(i=0;i<numOfAttrib;i++){
-		attr[i]=0;
+
+	for(i=0;i<M;i++){
+		h_attr[i]=0;
 	}
+
+	int *d_attr , *d_data, *d_trainFileData, *d_cardinality;
+
+	cudaMalloc((void**)&d_attr,M*sizeof(int)); 
+	cudaMalloc((void**)&d_data,N*sizeof(int));
+	cudaMalloc((void**)&d_trainFileData,N*M*sizeof(int));
+	cudaMemset(d_attr,0,M*sizeof(int));
+	cudaMemcpy((void*)d_data,(void*)h_data,N*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)d_trainFileData,(void*)h_trainFileData,M*N*sizeof(int),cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&d_cardinality,M*sizeof(int));
+	cudaMemset(d_cardinality,0,M*sizeof(int));
+	getCardinality<<<blocks,threads>>>(d_trainFileData,d_cardinality);
 
 	root = create();
-	decision(attr,data,root);
+	decision(h_attr,h_data,root);
 
 	return 0;
 }
