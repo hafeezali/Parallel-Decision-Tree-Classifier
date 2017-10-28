@@ -9,7 +9,7 @@
 #include "math.h"
 #include "limits.h"
 
-#define MINIMUM -9999999
+#define MINIMUM -99
 #define trainingData "myDataset.txt"
 #define testingData "myDataset.txt"
 #define M 6
@@ -23,6 +23,7 @@ vector <vector <int> > trainFile;
 vector <vector <int> > testFile;
 
 int *d_trainFileData, *d_cardinality;
+float *infoGainsInitializer;
 __device__ float d_infoGainOfData;
 
 dim3 blocks(M);
@@ -96,18 +97,15 @@ void readCSV(string str)
 
 __global__ void getInfoGains(int *attr,int *data,int dataSize,float *infoGains,int *trainFileData,int *cardinality)
 {
-	infoGains[blockIdx.x]=MINIMUM;
-	__syncthreads();
-	if(attr[blockIdx.x]==0 && blockIdx.x!=0){
+	if(attr[blockIdx.x]==0 && blockIdx.x!=0 && blockIdx.x!=M-1){
 		int tid,bid,j;
-		float infoGain,intermediateGain;
 		tid=threadIdx.x;
 		bid=blockIdx.x;
 		__shared__ int attrValCount[10];
 		__shared__ int classAttrValCount[10][10];
-		if(tid<=cardinality[bid]+1){
+		if(tid<10){
 			attrValCount[tid]=0;
-			for(j=0;j<=cardinality[M];j++){
+			for(j=0;j<10;j++){
 				classAttrValCount[tid][j]=0;
 			}
 		}
@@ -119,11 +117,18 @@ __global__ void getInfoGains(int *attr,int *data,int dataSize,float *infoGains,i
 		__syncthreads();
 		if(tid==0){
 			int i,j;
+			float infoGain,intermediateGain;
 			infoGain=0;
 			for(i=1;i<=cardinality[bid];i++){
 				intermediateGain=0;
-				for(j=1;j<=cardinality[M];j++){
-					intermediateGain+=((float)classAttrValCount[i][j]/(float)attrValCount[i])*(log((float)classAttrValCount[i][j]/(float)attrValCount[i]));
+				if(attrValCount[i]==0){
+					continue;
+				}
+				for(j=1;j<=cardinality[M-1];j++){
+					if(classAttrValCount[i][j]==0){
+						continue;
+					}
+					intermediateGain+=(float(classAttrValCount[i][j])/(float)attrValCount[i])*(log((float)classAttrValCount[i][j]/(float)attrValCount[i])/log((float)2));
 				}
 				intermediateGain*=(float(attrValCount[i])/(float)dataSize);
 				infoGain-=intermediateGain;
@@ -136,22 +141,26 @@ __global__ void getInfoGains(int *attr,int *data,int dataSize,float *infoGains,i
 __global__ void getInfoGainOfData(int *data,int dataSize,int *trainFileData,int *cardinality)
 {
 	__shared__ int classValCount[10];
-	int classVal,i;
+	int classVal,i,tid;
 	float infoGain;
-	if(threadIdx.x==0){
-		for(i=0;i<=cardinality[M];i++){
-			classValCount[i]=0;
-		}
+	tid=threadIdx.x;
+	if(tid<10){
+		classValCount[tid]=0;
 	}
 	__syncthreads();
-	classVal=trainFileData(data[threadIdx.x],M);
+	classVal=trainFileData(data[threadIdx.x],M-1);
 	atomicAdd(&classValCount[classVal],1);
 	__syncthreads();
-	infoGain=0;
-	for(i=1;i<=cardinality[M];i++){
-		infoGain+=((float)classValCount[i]/(float)dataSize)*(log((float)classValCount[i]/(float)dataSize));
+	if(tid==0){
+		infoGain=0;
+		for(i=1;i<=cardinality[M-1];i++){
+			if(classValCount[i]==0){
+				continue;
+			}
+			infoGain+=((float)classValCount[i]/(float)dataSize)*(log((float)classValCount[i]/(float)dataSize)/log((float)2));
+		}
+		d_infoGainOfData=-1*infoGain;
 	}
-	d_infoGainOfData=-1*infoGain;
 }
 
 int popularVote(int *data,int dataSize)
@@ -179,7 +188,21 @@ int popularVote(int *data,int dataSize)
 
 void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 {
-	int flag,h_selectedAttribute,i,maxGain;
+
+	//to be deleted
+	printf("h_attr:\n");
+	for(int i=0;i<M;i++){
+		printf("%d ",h_attr[i]);
+	}
+	printf("\n");
+	printf("Data Points:\n");
+	for(int i=0;i<h_dataSize;i++){
+		printf("%d ",h_data[i]);
+	}
+	printf("\n");
+	//to be deleted
+	int flag,h_selectedAttribute,i;
+	float maxGain;
 	if(h_dataSize==0){
 		return;
 	}
@@ -202,13 +225,13 @@ void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 
 	cudaMalloc((void**)&d_attr,M*sizeof(int));
 	cudaMalloc((void**)&d_data,h_dataSize*sizeof(int));
-	cudaMalloc((void**)&d_infoGains,M*sizeof(float));
+	cudaMalloc(&d_infoGains,M*sizeof(float));
 	cudaMemcpy((void*)d_attr,(void*)h_attr,M*sizeof(int),cudaMemcpyHostToDevice);
-	cudaMemcpy((void*)d_data,(void*)h_data,N*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)d_data,(void*)h_data,h_dataSize*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy(d_infoGains, infoGainsInitializer, M*sizeof(float),cudaMemcpyHostToDevice);
 
 	getInfoGains<<<blocks,h_dataSize>>>(d_attr,d_data,h_dataSize,d_infoGains,d_trainFileData,d_cardinality);
 
-	cudaMemcpy((void*)h_attr,(void*)d_attr,M*sizeof(int),cudaMemcpyDeviceToHost);
 	cudaMemcpy((void*)h_infoGains,(void*)d_infoGains,M*sizeof(float),cudaMemcpyDeviceToHost);
 
 	cudaFree(d_attr);
@@ -216,21 +239,34 @@ void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 
 	getInfoGainOfData<<<1,h_dataSize>>>(d_data,h_dataSize,d_trainFileData,d_cardinality);
 
-	cudaMemcpy((void*)&h_infoGainOfData,(void*)&d_infoGainOfData,sizeof(float),cudaMemcpyDeviceToHost);
+	cudaMemcpyFromSymbol(&h_infoGainOfData,d_infoGainOfData,sizeof(float),0,cudaMemcpyDeviceToHost);
 
 	cudaFree(d_data);
 
 	maxGain=MINIMUM;
 	h_selectedAttribute=-1;
+	//to be deleted
+	printf("infoGain of data: %f\n",h_infoGainOfData);
+	printf("attribute gains:\n");
+	//to be deleted
 	for(i=1;i<M-1;i++){
-		h_infoGains[i]=h_infoGainOfData-h_infoGains[i];
-		if(h_infoGains[i]>maxGain){
-			maxGain=h_infoGains[i];
-			h_selectedAttribute=i;
+		if(h_attr[i]==0){
+			h_infoGains[i]=h_infoGainOfData-h_infoGains[i];
+			//to be deleted
+			printf("%d %f\n",i,h_infoGains[i]);
+			//to be deleted
+			if(h_infoGains[i]>maxGain){
+				maxGain=h_infoGains[i];
+				h_selectedAttribute=i;
+			}
 		}
 	}
+	//to be deleted
+	printf("\n");
+	//to be deleted
 
 	root->attribute = h_selectedAttribute;
+	h_attr[h_selectedAttribute]=1;
 
 	if(h_selectedAttribute==-1){
 		root->val = popularVote(h_data, h_dataSize);
@@ -260,7 +296,14 @@ void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 		root->child[i] = childNode;
 		int* h_childData = &(it->second[0]);
 
-		decision(h_attr, h_childData, childNode, it->second.size());
+		//to be deleted
+		int new_attr[M];
+		for(int z=0;z<M;z++){
+			new_attr[z]=h_attr[z];
+		}
+		//to be deleted
+
+		decision(new_attr, h_childData, childNode, it->second.size());
 	}
 }
 
@@ -294,6 +337,7 @@ __global__ void getCardinality(int *trainFileData,int *cardinality)
 // function for printing and debugging decision tree : bfs traversal
 void printDecisionTree(node *root)
 {
+	printf("Printing decision tree:\n");
 	queue <node> bfsQ;
 	int x,j;
 	node* nextNode;
@@ -395,19 +439,23 @@ int main()
 
 	getCardinality<<<blocks,threads>>>(d_trainFileData,d_cardinality);
 
-	cudaDeviceSynchronize();
-
 	root = create();
+
+	infoGainsInitializer = (float*)malloc(M*sizeof(float));
+	for(i=0;i<M;i++){
+		infoGainsInitializer[i]=MINIMUM;
+	}
+
 	decision(h_attr,h_data,root,N);
 
-					// cudaFree(d_trainFileData);
-					// cudaFree(d_cardinality);
+	cudaFree(d_trainFileData);
+	cudaFree(d_cardinality);
 
-					// //print decision tree
-					// printDecisionTree(root);
+	//print decision tree
+	printDecisionTree(root);
 
-					// // test decision tree
-					// test(root);
+	// test decision tree
+	test(root);
 
 	return 0;
 }

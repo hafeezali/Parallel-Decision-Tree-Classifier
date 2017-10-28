@@ -11,8 +11,8 @@
 #include <climits>
 
 // filename of training data and testing data
-#define trainingData "hayes-roth.data.txt"
-#define testingData "hayes-roth.data.txt"
+#define trainingData "myDataset.txt"
+#define testingData "myDataset.txt"
 
 using namespace std;
 
@@ -198,9 +198,16 @@ int select(vector <int> &attr,vector <int> data)
 	int i,splitAttr;
 	double iGain,maxIGain;
 	maxIGain = INT_MIN;
+	//to be deleted
+	printf("infoGain of data: %f\n",getInfoGainOfData(data));
+	printf("attribute gains:\n");
+	//to be deleted
 	for(i=1;i<attr.size()-1;i++){
 		if(attr[i]==0){
 			iGain = infoGain(i,data);
+			//to be deleted
+			printf("%d %f\n",i,iGain);
+			//to be deleted
 			if(iGain>maxIGain){
 				// store maximum information gain value along with attribute 
 				maxIGain = iGain;
@@ -208,6 +215,9 @@ int select(vector <int> &attr,vector <int> data)
 			}
 		}
 	}
+	//to be deleted
+	printf("\n");
+	//to be deleted
 	if(maxIGain==INT_MIN){
 		return -1;
 	}
@@ -248,6 +258,13 @@ int popularVote(vector<int> data)
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 void decision(vector<int> attr,vector<int> data,node *root)
 {
+	//to be deleted
+	printf("Data Points:\n");
+	for(int i=0;i<data.size();i++){
+		printf("%d ",data[i]);
+	}
+	printf("\n");
+	//to be deleted
 	int flag,selectedAttribute,i;
 	if(data.size()==0){
 		return;
@@ -310,6 +327,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 // function for printing and debugging decision tree : bfs traversal
 void printDecisionTree(node *root)
 {
+	printf("Printing decision tree:\n");
 	queue <node> bfsQ;
 	int x,j;
 	node* nextNode;
@@ -406,7 +424,7 @@ int main()
 	decision(attr,data,root);
 	
 	//print decision tree
-	//printDecisionTree(root);
+	printDecisionTree(root);
 
 	// test decision tree
 	test(root);
