@@ -11,8 +11,8 @@
 #include <climits>
 
 // filename of training data and testing data
-#define trainingData "myDataset.txt"
-#define testingData "myDataset.txt"
+#define trainingData "hayes-roth.data.txt"
+#define testingData "hayes-roth.data.txt"
 
 using namespace std;
 
