@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <set>
 #include <climits>
+#include <omp.h>
 
 // filename of training data and testing data
 #define trainingData "hayes-roth.data.txt"
@@ -421,10 +422,12 @@ int main()
 
 	// create decision tree
 	root = create();
+	double start = omp_get_wtime();
 	decision(attr,data,root);
-	
+	double end = omp_get_wtime();
+	printf("time:%f\n", end-start);
 	//print decision tree
-	printDecisionTree(root);
+	// printDecisionTree(root);
 
 	// test decision tree
 	test(root);
