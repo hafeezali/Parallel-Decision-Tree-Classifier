@@ -12,8 +12,8 @@
 #include <omp.h>
 
 // filename of training data and testing data
-#define trainingData "nursery-data.int.txt"
-#define testingData "nursery-data.int.txt"
+#define trainingData "car-data.int.txt"
+#define testingData "car-test.int.txt"
 
 using namespace std;
 
@@ -199,16 +199,16 @@ int select(vector <int> &attr,vector <int> data)
 	int i,splitAttr;
 	double iGain,maxIGain;
 	maxIGain = INT_MIN;
-	//to be deleted
-	printf("infoGain of data: %f\n",getInfoGainOfData(data));
-	printf("attribute gains:\n");
-	//to be deleted
+	// //to be deleted
+	// printf("infoGain of data: %f\n",getInfoGainOfData(data));
+	// printf("attribute gains:\n");
+	// //to be deleted
 	for(i=1;i<attr.size()-1;i++){
 		if(attr[i]==0){
 			iGain = infoGain(i,data);
-			//to be deleted
-			printf("%d %f\n",i,iGain);
-			//to be deleted
+			// //to be deleted
+			// printf("%d %f\n",i,iGain);
+			// //to be deleted
 			if(iGain>maxIGain){
 				// store maximum information gain value along with attribute 
 				maxIGain = iGain;
@@ -216,9 +216,9 @@ int select(vector <int> &attr,vector <int> data)
 			}
 		}
 	}
-	//to be deleted
-	printf("\n");
-	//to be deleted
+	// //to be deleted
+	// printf("\n");
+	// //to be deleted
 	if(maxIGain==INT_MIN){
 		return -1;
 	}
@@ -259,13 +259,13 @@ int popularVote(vector<int> data)
 // data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 void decision(vector<int> attr,vector<int> data,node *root)
 {
-	//to be deleted
-	printf("Data Points:\n");
-	for(int i=0;i<data.size();i++){
-		printf("%d ",data[i]);
-	}
-	printf("\n");
-	//to be deleted
+	// //to be deleted
+	// printf("Data Points:\n");
+	// for(int i=0;i<data.size();i++){
+	// 	printf("%d ",data[i]);
+	// }
+	// printf("\n");
+	// //to be deleted
 	int flag,selectedAttribute,i;
 	if(data.size()==0){
 		return;
@@ -423,15 +423,18 @@ int main()
 
 	// create decision tree
 	root = create();
+
 	double start = omp_get_wtime();
 	decision(attr,data,root);
 	double end = omp_get_wtime();
+
 	//print decision tree
-	printDecisionTree(root);
+	//printDecisionTree(root);
 
 	// test decision tree
-	printf("time:%f\n", end-start);
 	test(root);
+
+	printf("Time taken:%f\n", end-start);
 
 	return 0;
 }

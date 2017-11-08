@@ -1,0 +1,8 @@
+Size against Kernel & Malloc Time
+
+Name	N	M	Size	Kernel	Malloc	
+Nursery	7756	10	77560	80.7333	384.492
+Cars	1695	8	13560	8.41411	43.2167
+hayes	104	6	624	0.51171 1.98182
+Balloon	19	6	114	0.06832	0.35884
+

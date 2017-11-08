@@ -5,15 +5,16 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include "gputimer.h"
 
 #include "math.h"
 #include "limits.h"
 
 #define MINIMUM -99
-#define trainingData "nursery-data.int.txt"
-#define testingData "nursery-data.int.txt"
-#define M 10
-#define N 7775
+#define trainingData "hayes-roth.data.txt"
+#define testingData "hayes-roth.test.txt"
+#define M 6
+#define N 104
 #define trainFileData(row,col) trainFileData[row*M+col]
 #define testFileData(row,col) testFileData[row*M+col]
 
@@ -21,6 +22,11 @@ using namespace std;
 
 vector <vector <int> > trainFile;
 vector <vector <int> > testFile;
+
+GpuTimer kernelTimer;
+GpuTimer mallocTimer;
+float kernelTime = 0;
+float mallocTime = 0;
 
 int *d_trainFileData, *d_cardinality;
 float *infoGainsInitializer;
@@ -188,19 +194,18 @@ int popularVote(int *data,int dataSize)
 
 void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 {
-
-	//to be deleted
-	printf("h_attr:\n");
-	for(int i=0;i<M;i++){
-		printf("%d ",h_attr[i]);
-	}
-	printf("\n");
-	printf("Data Points:\n");
-	for(int i=0;i<h_dataSize;i++){
-		printf("%d ",h_data[i]);
-	}
-	printf("\n");
-	//to be deleted
+	// //to be deleted
+	// printf("h_attr:\n");
+	// for(int i=0;i<M;i++){
+	// 	printf("%d ",h_attr[i]);
+	// }
+	// printf("\n");
+	// printf("Data Points:\n");
+	// for(int i=0;i<h_dataSize;i++){
+	// 	printf("%d ",h_data[i]);
+	// }
+	// printf("\n");
+	// //to be deleted
 	int flag,h_selectedAttribute,i;
 	float maxGain;
 	if(h_dataSize==0){
@@ -223,47 +228,62 @@ void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 	float h_infoGains[M];
 	float h_infoGainOfData;
 
+	mallocTimer.Start();
 	cudaMalloc((void**)&d_attr,M*sizeof(int));
 	cudaMalloc((void**)&d_data,h_dataSize*sizeof(int));
 	cudaMalloc(&d_infoGains,M*sizeof(float));
 	cudaMemcpy((void*)d_attr,(void*)h_attr,M*sizeof(int),cudaMemcpyHostToDevice);
 	cudaMemcpy((void*)d_data,(void*)h_data,h_dataSize*sizeof(int),cudaMemcpyHostToDevice);
 	cudaMemcpy(d_infoGains, infoGainsInitializer, M*sizeof(float),cudaMemcpyHostToDevice);
+	mallocTimer.Stop();
+	mallocTime+=mallocTimer.Elapsed();
 
+	kernelTimer.Start();
 	getInfoGains<<<blocks,h_dataSize>>>(d_attr,d_data,h_dataSize,d_infoGains,d_trainFileData,d_cardinality);
+	kernelTimer.Stop();
+	kernelTime+=kernelTimer.Elapsed();
 
+	mallocTimer.Start();
 	cudaMemcpy((void*)h_infoGains,(void*)d_infoGains,M*sizeof(float),cudaMemcpyDeviceToHost);
 
 	cudaFree(d_attr);
 	cudaFree(d_infoGains);
+	mallocTimer.Stop();
+	mallocTime+=mallocTimer.Elapsed();	
 
+	kernelTimer.Start();
 	getInfoGainOfData<<<1,h_dataSize>>>(d_data,h_dataSize,d_trainFileData,d_cardinality);
+	kernelTimer.Stop();
+	kernelTime+=kernelTimer.Elapsed();
 
+	mallocTimer.Start();
 	cudaMemcpyFromSymbol(&h_infoGainOfData,d_infoGainOfData,sizeof(float),0,cudaMemcpyDeviceToHost);
 
 	cudaFree(d_data);
+	mallocTimer.Stop();
+	mallocTime+=mallocTimer.Elapsed();
 
 	maxGain=MINIMUM;
 	h_selectedAttribute=-1;
-	//to be deleted
-	printf("infoGain of data: %f\n",h_infoGainOfData);
-	printf("attribute gains:\n");
-	//to be deleted
+	// //to be deleted
+	// printf("infoGain of data: %f\n",h_infoGainOfData);
+	// printf("attribute gains:\n");
+	// //to be deleted
 	for(i=1;i<M-1;i++){
 		if(h_attr[i]==0){
 			h_infoGains[i]=h_infoGainOfData-h_infoGains[i];
-			//to be deleted
-			printf("%d %f\n",i,h_infoGains[i]);
-			//to be deleted
+			// //to be deleted
+			// printf("%d %f\n",i,h_infoGains[i]);
+			// //to be deleted
 			if(h_infoGains[i]>maxGain){
 				maxGain=h_infoGains[i];
 				h_selectedAttribute=i;
 			}
 		}
 	}
-	//to be deleted
-	printf("\n");
-	//to be deleted
+	// //to be deleted
+	// printf("\n");
+	// //to be deleted
 
 	root->attribute = h_selectedAttribute;
 	h_attr[h_selectedAttribute]=1;
@@ -296,12 +316,10 @@ void decision(int *h_attr,int *h_data, node *root,int h_dataSize)
 		root->child[i] = childNode;
 		int* h_childData = &(it->second[0]);
 
-		//to be deleted
 		int new_attr[M];
 		for(int z=0;z<M;z++){
 			new_attr[z]=h_attr[z];
 		}
-		//to be deleted
 
 		decision(new_attr, h_childData, childNode, it->second.size());
 	}
@@ -410,6 +428,8 @@ void test(node* root)
 
 int main()
 {
+	GpuTimer timer;
+
 	int i;
 	node* root;
 
@@ -431,13 +451,19 @@ int main()
 		h_attr[i]=0;
 	}
 
+	mallocTimer.Start();
 	cudaMalloc((void**)&d_trainFileData,N*M*sizeof(int));
 	cudaMemcpy((void*)d_trainFileData,(void*)h_trainFileData,M*N*sizeof(int),cudaMemcpyHostToDevice);
 
 	cudaMalloc((void**)&d_cardinality,M*sizeof(int));
 	cudaMemset(d_cardinality,0,M*sizeof(int));
+	mallocTimer.Stop();
+	mallocTime+=mallocTimer.Elapsed();
 
+	kernelTimer.Start();
 	getCardinality<<<blocks,threads>>>(d_trainFileData,d_cardinality);
+	kernelTimer.Stop();
+	kernelTime+=kernelTimer.Elapsed();
 
 	root = create();
 
@@ -446,16 +472,22 @@ int main()
 		infoGainsInitializer[i]=MINIMUM;
 	}
 
+	timer.Start();
 	decision(h_attr,h_data,root,N);
+ 	timer.Stop();
 
 	cudaFree(d_trainFileData);
 	cudaFree(d_cardinality);
 
 	//print decision tree
-	printDecisionTree(root);
+	//printDecisionTree(root);
 
 	// test decision tree
 	test(root);
+
+	printf("Time taken: %gms\n",timer.Elapsed());
+	printf("Kernel Time: %gms\n",kernelTime);
+	printf("Malloc Time: %gms\n",mallocTime);
 
 	return 0;
 }
