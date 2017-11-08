@@ -12,8 +12,8 @@
 #include <omp.h>
 
 // filename of training data and testing data
-#define trainingData "nursery.data.int.txt"
-#define testingData "nursery.data.int.txt"
+#define trainingData "nursery-data.int.txt"
+#define testingData "nursery-data.int.txt"
 
 using namespace std;
 
@@ -426,11 +426,11 @@ int main()
 	double start = omp_get_wtime();
 	decision(attr,data,root);
 	double end = omp_get_wtime();
-	printf("time:%f\n", end-start);
 	//print decision tree
 	printDecisionTree(root);
 
 	// test decision tree
+	printf("time:%f\n", end-start);
 	test(root);
 
 	return 0;

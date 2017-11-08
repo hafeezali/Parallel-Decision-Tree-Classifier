@@ -1,33 +1,26 @@
+#include <omp.h>
+#include <iostream>
 #include <vector>
 #include <map>
+#include <set>
 #include <queue>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <iostream>
 #include <cmath>
 #include <cstdlib>
-#include <set>
 #include <climits>
-#include <omp.h>
 
-// filename of training data and testing data
 #define trainingData "hayes-roth.data.txt"
 #define testingData "hayes-roth.data.txt"
 
 using namespace std;
 
-// 2d vector to store training data
 vector <vector <int> > fileContent;
-// 2d vector to store testing data
 vector <vector <int> > testFileContent;
 
 int numOfAttrib, numOfDataEle;
 
-// node structure of the decision tree
-// attribute: splitting attribute (= -1 if leaf node)
-// val: class value at leaf node (= -1 if decision node)
-// branchVal: make branch decision based on this value
 struct Node{
 	int numOfChildren;
 	int val;
@@ -38,7 +31,6 @@ struct Node{
 
 typedef struct Node node;
 
-// initialising tree node
 node* create(){
 	node* n = new node;
 	n->numOfChildren = 0;
@@ -48,20 +40,16 @@ node* create(){
 	return n;
 }
 
-// function to read data and store in fileContent & testFileContent vectors(2d)
 void readCSV(string str)
 {
-	// input file stream (ifs) for reading data from file
 	if(str.compare("training")==0){
 		ifstream ifs(trainingData);
 		string line;
 
-		// read from ifs into string 'line'
 		while(getline(ifs,line)){
 			stringstream lineStream(line);
 			string cell;
 			vector <int> values;
-			// collecting row data from file delimited by ','
 			while(getline(lineStream,cell,',')){
 				const char *cstr = cell.c_str();
 				values.push_back(atoi(cstr));
@@ -73,13 +61,11 @@ void readCSV(string str)
 	else if(str.compare("testing")==0){
 		ifstream ifs(testingData);
 		string line;
-		
-		// read from ifs into string 'line'
+
 		while(getline(ifs,line)){
 			stringstream lineStream(line);
 			string cell;
 			vector <int> values;
-			// collecting row data from file delimited by ','
 			while(getline(lineStream,cell,',')){
 				const char *cstr = cell.c_str();
 				values.push_back(atoi(cstr));
@@ -90,7 +76,6 @@ void readCSV(string str)
 	}
 }
 
-// function to calculate entropy 
 double entropy(vector <double> counts)
 {
 	double total,entropy;
@@ -103,21 +88,18 @@ double entropy(vector <double> counts)
 		total+=counts[i];
 	}
 	entropy=0;
-	// Entropy E = (a/(a+b+...))*(log(a/(a+b+...))/log(2)) + (b/(a+b+...))*(log(b/(a+b+...))/log(2)) + ...
 	for(i=0;i<counts.size();i++){
 		entropy += (counts[i]/total)*(log(counts[i]/total)/log(2));
 	}
 	return -1 * entropy;
 }
 
-// function to get information gain of training data
 double getInfoGainOfData(vector <int> data)
 {
 	int i,classVal;
-	// classCount: keeps a count of the number of data points belonging to a particular class
 	map<int, int> classCount;
 	map<int, int>::iterator it;
-	// counts: store all the counts of all the classes, used for calculating entropy
+
 	vector<double> counts;
 	#pragma omp parallel for
 	for(i=0;i<data.size();i++){
@@ -138,17 +120,14 @@ double getInfoGainOfData(vector <int> data)
 	return entropy(counts);
 }
 
-// function to calculate information gain
-// attr: attribute for which gin must be calculated
-// data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 double infoGain(int attr,vector <int> data)
 {
 	int i,branchVal,dataSize,subDataValue;
 	double attrInfoGain;
-	// branchCount: count of each attribute value
+
 	map<int, int> branchCount;
 	map<int, int>::iterator branchCountIT;
-	// dataElements[i]: vector containing all data elements having attribute value "i"
+
 	map<int, vector<int> > dataElements;
 	#pragma omp parallel for
 	for(i=0;i<data.size();i++){
@@ -171,7 +150,7 @@ double infoGain(int attr,vector <int> data)
 	dataSize=data.size();
 	for(branchCountIT = branchCount.begin();branchCountIT!=branchCount.end();branchCountIT++){
 		vector <int> subData = dataElements[branchCountIT->first];
-		// subDataCounts: contains count of data elements belonging to the different output classes
+
 		map <int, int> subDataCounts;
 		map <int, int>::iterator subDataCountsIT;
 		#pragma omp parallel for
@@ -187,7 +166,6 @@ double infoGain(int attr,vector <int> data)
 				}
 			}
 		}
-		// subDataCountsArr: contains all counts of each output class value
 		vector <double> subDataCountsArr;
 		for(subDataCountsIT=subDataCounts.begin();subDataCountsIT!=subDataCounts.end();subDataCountsIT++){
 			subDataCountsArr.push_back((double)subDataCountsIT->second);
@@ -197,47 +175,39 @@ double infoGain(int attr,vector <int> data)
 	return getInfoGainOfData(data) - attrInfoGain;
 }
 
-// function to determine the splitting attribute
-// attr: candidate attributes for splitting attribute, attr[i]=1 if already used
-// data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
+
+//problem with this
 int select(vector <int> &attr,vector <int> data)
 {
 	int i,splitAttr;
-	double iGain,maxIGain;
+	vector <double> iGain(attr.size(),0);
+	double maxIGain;
 	maxIGain = INT_MIN;
-	//to be deleted
-	printf("infoGain of data: %f\n",getInfoGainOfData(data));
-	printf("attribute gains:\n");
-	//to be deleted
 	for(i=1;i<attr.size()-1;i++){
 		if(attr[i]==0){
-			iGain = infoGain(i,data);
-			//to be deleted
-			printf("%d %f\n",i,iGain);
-			//to be deleted
-			if(iGain>maxIGain){
-				// store maximum information gain value along with attribute 
-				maxIGain = iGain;
-				splitAttr = i;
-			}
+			#pragma omp task
+			iGain[i] = infoGain(i,data);
 		}
 	}
-	//to be deleted
-	printf("\n");
-	//to be deleted
-	if(maxIGain==INT_MIN){
+
+	#pragma omp taskwait
+	for(i=1;i<attr.size()-1;i++){
+		if(iGain[i] > maxIGain){
+			maxIGain = iGain[i];
+			splitAttr = i;
+		}
+	}
+
+	if(maxIGain == INT_MIN){
 		return -1;
 	}
-	// mark splitAttr as used
 	attr[splitAttr]=1;
 	return splitAttr;
 }
 
-// function for returning most probable output class
 int popularVote(vector<int> data)
 {
 	int i,outputClass,ans,maxVal;
-	// dataCount: keeps count of each output class in data vector
 	map <int, int> dataCount;
 	map <int, int>::iterator it;
 
@@ -256,58 +226,42 @@ int popularVote(vector<int> data)
 	}
 	maxVal = INT_MIN;
 
-	// ans contains popularVote
 	for(it=dataCount.begin();it!=dataCount.end();it++){
 		if(it->second > maxVal){
-			ans=it->first;
+			ans = it->first;
 		}
 	}
 	return ans;
 }
 
-// builder function for generating decision tree
-// attr: candidate attributes for splitting attribute, attr[i]=1 if already used
-// data: data row nos(in the file and index in "fileContent" vector) used for calculating information gains
 void decision(vector<int> attr,vector<int> data,node *root)
 {
-	//to be deleted
-	printf("Thread:%d\n", omp_get_thread_num());
-	printf("Data Points:\n");
-	for(int i=0;i<data.size();i++){
-		printf("%d ",data[i]);
-	}
-	printf("\n");
-	//to be deleted
 	int flag,selectedAttribute,i;
 	if(data.size()==0){
 		return;
 	}
 	flag=1;
-
+	
 	#pragma omp parallel for shared(flag) private(i)
 	for(i=1;i<data.size();i++){
 		if(fileContent[data[i]][numOfAttrib-1]!=fileContent[data[i-1]][numOfAttrib-1]){
 			flag=0;
 		}
 	}
-
-	// flag = 1 if all the data belong to the same class
+	
 	if(flag==1){
-		// assign class value to node and return
 		root->val=fileContent[data[0]][numOfAttrib-1];
 		return;
 	}
-	// selectedAttribute : splitting attribute
-	selectedAttribute=select(attr,data);
+	
+	selectedAttribute = select(attr,data);
 	root->attribute = selectedAttribute;
-
+	
 	if(selectedAttribute == -1){
-		// running out of attributes
 		root->val = popularVote(data);
 		return;
 	}
 
-	// dividedData: divide data and store based on attribute values
 	map<int, vector <int> > dividedData;
 	map<int, vector <int> >::iterator it;
 	int attrVal;
@@ -329,16 +283,17 @@ void decision(vector<int> attr,vector<int> data,node *root)
 	}
 
 	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
-		// create childNode and recurse on it
 		root->numOfChildren++;
 		node* childNode;
 		childNode = create();
 		childNode->branchVal = it->first;
 		root->child[i] = childNode;
+
 		#pragma omp task
 		decision(attr, it->second, childNode);
 	}
 	#pragma omp taskwait
+
 }
 
 // function for printing and debugging decision tree : bfs traversal
@@ -417,11 +372,13 @@ void test(node* root)
 
 int main()
 {
+	omp_set_dynamic(1);
+	omp_set_nested(1);
+
 	int i;
-	node* root;
-	// vector to store row number for data in file
+	node * root;
+
 	vector <int> data;
-	// vector to check if attribute has already been used or not
 	vector <int> attr;
 
 	readCSV("training");
@@ -445,22 +402,17 @@ int main()
 		}
 	}
 
-	// create decision tree
 	root = create();
-	double start = omp_get_wtime();
 	#pragma omp parallel num_threads(8)
 	{
 		#pragma omp single
 		{
-			#pragma omp task
 			decision(attr,data,root);
 		}
 	}
-	double end = omp_get_wtime();
-	//print decision tree
+
 	printDecisionTree(root);
-	printf("time:%f\n", end-start);
-	// test decision tree
+
 	test(root);
 
 	return 0;
