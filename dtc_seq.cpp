@@ -12,8 +12,8 @@
 #include <omp.h>
 
 // filename of training data and testing data
-#define trainingData "hayes-roth.data.txt"
-#define testingData "hayes-roth.data.txt"
+#define trainingData "nursery.data.int.txt"
+#define testingData "nursery.data.int.txt"
 
 using namespace std;
 

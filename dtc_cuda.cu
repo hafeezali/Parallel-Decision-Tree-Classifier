@@ -10,10 +10,10 @@
 #include "limits.h"
 
 #define MINIMUM -99
-#define trainingData "hayes-roth.data.txt"
-#define testingData "hayes-roth.data.txt"
-#define M 6
-#define N 132
+#define trainingData "nursery.data.int.txt"
+#define testingData "nursery.data.int.txt"
+#define M 10
+#define N 12959
 #define trainFileData(row,col) trainFileData[row*M+col]
 #define testFileData(row,col) testFileData[row*M+col]
 
