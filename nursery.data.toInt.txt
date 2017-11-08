@@ -1,0 +1,42 @@
+->parents [1]
+	usual : 1
+	pretentious : 2
+	great_pret : 3
+
+->has_nurs [2]
+	proper : 1
+	less_proper : 2
+	improper : 3
+	critical : 4
+	very_crit : 5
+
+->form [3]
+	complete : 1
+	completed : 2
+	incomplete : 3
+	foster : 4
+
+->children [4]
+	1 : 1
+	2 : 2
+	3 : 3
+	more : 4
+
+->housing [5]
+	convenient : 1
+	less_conv : 2
+	critical : 3
+
+->finance [6]
+	convenient : 1
+	incon : 2
+
+->social [7]
+	non-prob : 1
+	slightly-prob : 2
+	problematic : 3
+
+->health [8]
+	recommended : 1
+	priority : 2
+	not_recom : 3

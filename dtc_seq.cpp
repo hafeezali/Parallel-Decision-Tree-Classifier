@@ -294,7 +294,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 		return;
 	}
 
-	// dividedData: divide data and store based on attribute values
+	// dividedData: divide data and store based on attribute values : map from attrVal to data elements
 	map<int, vector <int> > dividedData;
 	map<int, vector <int> >::iterator it;
 	int attrVal;
@@ -312,6 +312,7 @@ void decision(vector<int> attr,vector<int> data,node *root)
 			dividedData[attrVal].push_back(data[i]);
 		}
 	}
+	// create and recurse on child nodes
 	for(i=0,it=dividedData.begin();it!=dividedData.end();it++,i++){
 		// create childNode and recurse on it
 		root->numOfChildren++;
@@ -427,7 +428,7 @@ int main()
 	double end = omp_get_wtime();
 	printf("time:%f\n", end-start);
 	//print decision tree
-	// printDecisionTree(root);
+	printDecisionTree(root);
 
 	// test decision tree
 	test(root);
